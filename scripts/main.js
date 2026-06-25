@@ -1,8 +1,6 @@
 const CONFIG = "compendiumConfiguration";
 const expectedFolders = new Map();
 const protectedFolders = new Set();
-let updateConfig = false;
-let updatedConfig = {};
 
 
 // Setup the expected folder information for each pack
@@ -63,8 +61,6 @@ Hooks.on("preUpdateSetting", async (setting, changed) => {
         if ( invalid ) ui.notifications.warn("Expected module folder not found, please reload the world to fix");
         if ( modified ) ui.notifications.info("Action prevented: Module packs cannot be moved to another folder");
         changed.value = JSON.stringify(changedConfig);
-        updatedConfig = changedConfig;
-        updateConfig = true;
     }
 })
 
