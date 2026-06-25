@@ -1,0 +1,20 @@
+{
+    "id": "enforce-module-compendium-structure",
+    "title": "Enforce Module Compendium Structure",
+    "description": "Prevents the deletion and movement of any folder defined in a module's packFolders. Additionally prevents the movement of any module pack outside its defined folder.",
+    "authors": [
+        {
+            "name": "joshzru",
+            "url": "https://https://github.com/joshzru"
+        }
+    ],
+    "version": "1.0.0",
+    "compatibility": {
+        "verified": "14"
+    },
+    "esmodules": [
+        "scripts/main.js"
+    ],
+    "manifest": "https://github.com/joshzru/enforce-module-compendium-structure/releases/latest/download/module.json",
+    "download": "https://github.com/joshzru/enforce-module-compendium-structure/releases/download/1.0.0/module.zip"
+}
