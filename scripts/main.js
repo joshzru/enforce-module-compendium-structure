@@ -70,7 +70,7 @@ async function validatePackFolders() {
     let repairable = true;
 
     for ( const pack of game.packs ) {
-        if ( pack.packageType === "world" ) continue;
+        if ( pack.metadata.packageType === "world" ) continue;
 
         const correctFolder = expectedFolders.get(pack.collection);
 
