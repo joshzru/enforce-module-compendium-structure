@@ -18,7 +18,7 @@ structure on a world reload.
 
 Additionally, users are prevented from:
 
-* Moving proteced module or system compendium folders
+* Moving protected module or system compendium folders
 * Deleting protected module or system compendium folders
 * Reassigning module or system compendium packs to different folders.
 
