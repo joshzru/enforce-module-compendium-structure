@@ -1,40 +1,32 @@
 const CONFIG = "compendiumConfiguration";
 const expectedFolders = new Map();
-const protectedFolders = new Set();
+const protectedFolders = new Set([null]);
 
 
 // Setup the expected folder information for each pack
 Hooks.once("setup", () => {
     // Map each module folder
     for ( const module of game.modules ) {
-        if ( !module.active ) continue;
-        for (const folder of module.packFolders.values()) {
-            mapFolders(folder, 1, module.id, []);
-        }
+        mapModule(module);
     }
 
     // Map each system folder
-    const system = game.system;
-    for (const folder of system.packFolders) {
-        mapFolders(folder, 1, system.id, []);
-    }
+    mapModule(game.system, true);
 })
 
 Hooks.once("ready", validatePackFolders);
 
 Hooks.on("preUpdateFolder", (folder, changed) => {
     if ( !protectedFolders.has(folder._id) ) return;
-    if ( "folder" in changed ) {
-        ui.notifications.info("Action prevented: Module folders cannot be moved")
-        delete changed.folder;
-    }
+    if ( !("folder" in changed) ) return;
+    ui.notifications.info("Action prevented: Module folders cannot be moved")
+    delete changed.folder;
 })
 
 Hooks.on("preDeleteFolder", (folder) => {
-    if ( protectedFolders.has(folder._id) ) {
-        ui.notifications.info("Action prevented: Module folders cannot be deleted");
-        return false;
-    }
+    if ( !protectedFolders.has(folder._id) ) return;
+    ui.notifications.info("Action prevented: Module folders cannot be deleted");
+    return false;
 })
 
 Hooks.on("preUpdateSetting", async (setting, changed) => {
@@ -48,7 +40,7 @@ Hooks.on("preUpdateSetting", async (setting, changed) => {
         if ( moduleId === "world" ) continue;
 
         const correctFolder = expectedFolders.get(collection);
-        if ( !correctFolder || !game.folders.has(correctFolder.id) ) {
+        if ( !correctFolder || !checkFolder(correctFolder.id) ) {
             delete changedConfig[collection];
             invalid = true;
         }
@@ -57,12 +49,11 @@ Hooks.on("preUpdateSetting", async (setting, changed) => {
             modified = true;
         }
     }
-    if ( modified || invalid ) {
-        if ( invalid ) ui.notifications.warn("Expected module folder not found, please reload the world to fix");
-        if ( modified ) ui.notifications.info("Action prevented: Module packs cannot be moved to another folder");
-        changed.value = JSON.stringify(changedConfig);
-    }
+    if ( invalid ) ui.notifications.warn("Expected module folder not found, please reload the world to fix");
+    if ( modified ) ui.notifications.info("Action prevented: Module packs cannot be moved to another folder");
+    if ( modified || invalid ) changed.value = JSON.stringify(changedConfig);
 })
+
 
 async function validatePackFolders() {
     const config = getConfig();
@@ -76,14 +67,13 @@ async function validatePackFolders() {
 
         // If the folder information is invalid, or if the expected folder
         // doesn't exist, invalidate its entry in compendiumConfiguration
-        if ( !correctFolder?.id || !game.folders.has(correctFolder.id) ) {
+        if ( !correctFolder || !checkFolder(correctFolder.id) ) {
             if ( Object.hasOwn(config, pack.collection) ) {
                 delete config[pack.collection];
                 changed = true;
                 repairable = false;
             }
         }
-
         // If the actual folder is different from the expected folder, revert
         // to the expected folder
         else if ( config[pack.collection]?.folder !== correctFolder.id ) {
@@ -97,13 +87,19 @@ async function validatePackFolders() {
     
 }
 
-
-function invalidateModule(module, config) {
-    // Delete each entry in compendiumConfiguration and our recorded folder
-    // information for packs in this module
-    for (const packData of module.packs.values()) {
-        if ( Object.hasOwn(config, packData.id) ) delete config[packData.id];
-        if ( expectedFolders.has(packData.id) ) expectedFolders.delete(packData.id)
+function mapModule(module, system=false) {
+    if ( !system  && !module.active ) return;
+    let mappedPacks = new Set();
+    for (const folder of module.packFolders.values()) {
+        mappedPacks = mappedPacks.union(mapFolders(folder, 1, module.id, []));
+    }
+    for ( const packData of module.packs.values() ) {
+        if ( !mappedPacks.has(packData.name) ) {
+            expectedFolders.set(`${module.id}.${packData.name}`,
+            {
+                id: null,
+            });
+        }
     }
 }
 
@@ -111,22 +107,30 @@ function invalidateModule(module, config) {
 function mapFolders(folder, depth, prefix, path) {
     const folderId = getFolderIdFromName(folder.name, depth, path);
     if ( !folderId ) return;
+    let mappedPacks = new Set();
 
     protectedFolders.add(folderId);
     // Assign each pack's expected folder information
     for ( const packName of folder.packs.values() ) {
+        mappedPacks.add(packName);
         expectedFolders.set(`${prefix}.${packName}`,
             {
-                id: folderId
+                id: folderId,
             });
     }
 
     // Recursively map each subfolder
     for ( const subFolder of folder.folders.values() ) {
-        mapFolders(subFolder, depth + 1, prefix, path.concat(folder.name))
+        mappedPacks = mappedPacks.union(mapFolders(subFolder, depth + 1, prefix, path.concat(folder.name)));
     }
+    return mappedPacks;
 }
 
+function checkFolder(folderId) {
+    // null is the root folder
+    if ( folderId === null || game.folders.has(folderId) ) return true;
+    else return false;
+}
 
 function getFolderIdFromName(name, depth, path) {
     for ( const folder of game.folders ) {
@@ -146,6 +150,7 @@ function getConfig() {
         game.settings.get("core", CONFIG)
     );
 }
+
 
 async function setConfig(config) {
     await game.settings.set("core", CONFIG, config);
